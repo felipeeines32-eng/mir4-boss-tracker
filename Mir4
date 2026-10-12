@@ -1,0 +1,462 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101116">
+<title>MIR4 Boss Tracker SA</title>
+<style>
+:root {
+  --bg:#101116; --panel:#191b23; --panel2:#20232d;
+  --gold:#d6ad63; --text:#eeeef2; --muted:#9295a5;
+  --green:#62d6a0; --red:#ff7676; --border:#303340;
+}
+*{box-sizing:border-box}
+body {
+  margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.5 Arial,Helvetica,sans-serif;
+}
+header {
+  background:#15161d;border-bottom:1px solid var(--border);
+  padding:22px max(18px,calc((100% - 1120px)/2));
+}
+.brand{font-size:24px;font-weight:800;letter-spacing:1px}
+.brand span{color:var(--gold)}
+.subtitle{color:var(--muted);font-size:12px;margin-top:4px}
+.container{max-width:1120px;margin:auto;padding:22px 18px 50px}
+.topbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.box {
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:9px;padding:15px;flex:1;min-width:190px;
+}
+.label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.clock{font-size:25px;font-weight:bold;font-variant-numeric:tabular-nums}
+.small{font-size:12px;color:var(--muted)}
+h2{font-size:17px;margin:0 0 15px}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:15px}
+input,select,button {
+  background:var(--panel2);border:1px solid var(--border);
+  color:var(--text);border-radius:6px;padding:10px 12px;font:inherit;
+}
+input,select{min-width:0}
+#search{flex:1;min-width:170px}
+button{cursor:pointer}
+button:hover{border-color:var(--gold)}
+button.primary{background:#4b3a20;border-color:#8c6d38;color:#ffe1a0}
+button.active{border-color:var(--gold)}
+.status{display:flex;align-items:center;gap:7px;color:var(--green)}
+.dot{width:7px;height:7px;background:var(--green);border-radius:50%}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:9px}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th{text-align:left;background:#1c1e27;color:var(--muted);font-size:11px;
+  text-transform:uppercase;letter-spacing:.7px}
+th,td{padding:13px 15px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#1c1e26}
+.boss{font-weight:bold;color:#f0d6a0}
+.tag{display:inline-block;background:#302b22;color:var(--gold);
+  border:1px solid #51432b;border-radius:4px;padding:2px 7px;font-size:11px}
+.timer{font-weight:bold;font-size:16px;font-variant-numeric:tabular-nums}
+.timer.soon{color:var(--gold)}
+.timer.ready{color:var(--green)}
+.muted{color:var(--muted)}
+.empty{text-align:center;padding:32px;color:var(--muted)}
+.footer{margin-top:20px;color:var(--muted);font-size:12px}
+.settings{margin-top:22px;background:var(--panel);border:1px solid var(--border);
+  border-radius:9px;padding:16px}
+.settings summary{cursor:pointer;color:var(--gold);font-weight:bold}
+.settings p{color:var(--muted);font-size:12px}
+#schedule{width:100%;min-height:130px;resize:vertical;font-family:monospace}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.note{margin-top:12px;padding:12px;background:#211f1a;border-radius:6px;
+  color:#d7c49e;font-size:12px}
+@media(max-width:600px){
+  .brand{font-size:20px}.container{padding:15px 10px 35px}
+  .box{min-width:140px}.clock{font-size:22px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">MIR4 <span>BOSS TRACKER</span></div>
+  <div class="subtitle">FIELD BOSS TRACKER · SOUTH AMERICA · UTC−03:00</div>
+</header>
+
+<main class="container">
+  <div class="topbar">
+    <div class="box">
+      <div class="label">Horário de Brasília</div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="small" id="today">Carregando data...</div>
+    </div>
+    <div class="box">
+      <div class="label">Próximo boss</div>
+      <div class="clock" id="nextBoss">--</div>
+      <div class="small" id="nextTime">Aguardando agenda</div>
+    </div>
+    <div class="box">
+      <div class="label">Status do tracker</div>
+      <div class="clock" id="bossCount">0</div>
+      <div class="status"><span class="dot"></span><span id="statusText">Timers ativos</span></div>
+    </div>
+  </div>
+
+  <h2>⚔ Bosses de Campo</h2>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Pesquisar boss ou mapa...">
+    <select id="mapFilter" aria-label="Filtrar mapa">
+      <option value="">Todos os mapas</option>
+    </select>
+    <select id="sort">
+      <option value="time">Próximo spawn</option>
+      <option value="name">Nome do boss</option>
+    </select>
+    <button id="soundBtn" class="primary">🔔 Ativar alertas</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Boss</th>
+          <th>Mapa</th>
+          <th>Canal</th>
+          <th>Spawn</th>
+          <th>Contagem</th>
+        </tr>
+      </thead>
+      <tbody id="bossRows"></tbody>
+    </table>
+    <div id="empty" class="empty" hidden>Nenhum boss encontrado.</div>
+  </div>
+
+  <details class="settings">
+    <summary>⚙ Configurar horários e bosses</summary>
+    <p>
+      Edite a agenda em JSON. Os horários usam o fuso de Brasília (UTC−03:00).
+      Cada horário é recorrente diariamente. Substitua os exemplos pelos
+      horários confirmados no servidor SA.
+    </p>
+    <textarea id="schedule" spellcheck="false"></textarea>
+    <div class="actions">
+      <button id="saveBtn" class="primary">Salvar agenda</button>
+      <button id="resetBtn">Restaurar exemplos</button>
+      <button id="exportBtn">Exportar JSON</button>
+    </div>
+    <div class="note">
+      O tracker é um contador local, não uma conexão oficial com os servidores
+      do MIR4. Bosses com vários horários diários podem ter vários itens na
+      agenda. Os alertas funcionam enquanto a página estiver aberta.
+    </div>
+  </details>
+
+  <div class="footer">
+    MIR4 Boss Tracker SA · Horário de Brasília · Atualização automática a cada segundo.
+  </div>
+</main>
+
+<script>
+"use strict";
+
+// =======================================================
+// CONFIGURAÇÃO INICIAL
+// Troque os exemplos abaixo por bosses e horários reais.
+// time: formato de 24 horas HH:MM, no horário UTC-03:00.
+// =======================================================
+const DEFAULT_BOSSES = [
+  {id:1, name:"Boss de exemplo 1", map:"Valley", channel:"SA", time:"12:00"},
+  {id:2, name:"Boss de exemplo 2", map:"Bicheon", channel:"SA", time:"18:00"},
+  {id:3, name:"Boss de exemplo 3", map:"Phantasia", channel:"SA", time:"21:30"}
+];
+
+const STORAGE_KEY = "mir4-boss-tracker-sa-v1";
+const TIME_ZONE = "America/Sao_Paulo";
+const ALERT_SECONDS = 300; // Alerta 5 minutos antes
+let bosses = loadBosses();
+let soundEnabled = false;
+let audioContext = null;
+let alerted = new Set();
+let nextSpawnCache = [];
+
+const $ = id => document.getElementById(id);
+
+function loadBosses() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return validateBosses(JSON.parse(saved));
+  } catch (e) {
+    console.warn("Não foi possível carregar a agenda salva.", e);
+  }
+  return DEFAULT_BOSSES.map(b => ({...b}));
+}
+
+function validateBosses(data) {
+  if (!Array.isArray(data)) throw new Error("A agenda deve ser uma lista.");
+  return data.map((b, i) => {
+    if (!b.name || !b.map || !/^([01]\d|2[0-3]):[0-5]\d$/.test(b.time))
+      throw new Error("Boss inválido na linha " + (i + 1));
+    return {
+      id: Number.isFinite(Number(b.id)) ? Number(b.id) : i + 1,
+      name: String(b.name).slice(0,100),
+      map: String(b.map).slice(0,100),
+      channel: String(b.channel || "SA").slice(0,40),
+      time: b.time
+    };
+  });
+}
+
+// Converte um instante para a data/hora de São Paulo.
+// Não depende do fuso configurado no computador do visitante.
+const formatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE, year:"numeric", month:"2-digit", day:"2-digit",
+  hour:"2-digit", minute:"2-digit", second:"2-digit",
+  hourCycle:"h23"
+});
+
+function zonedParts(date) {
+  const p = {};
+  formatter.formatToParts(date).forEach(x => {
+    if (x.type !== "literal") p[x.type] = Number(x.value);
+  });
+  return p;
+}
+
+function localDateKey(p) {
+  return `${p.year}-${String(p.month).padStart(2,"0")}-${String(p.day).padStart(2,"0")}`;
+}
+
+// Converte uma data/hora local de São Paulo em um instante real.
+// A correção iterativa evita depender do fuso do dispositivo.
+function localToInstant(year, month, day, hour, minute) {
+  const target = Date.UTC(year, month-1, day, hour, minute, 0);
+  let guess = target;
+  for (let i=0; i<3; i++) {
+    const p = zonedParts(new Date(guess));
+    const represented = Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second);
+    guess += target - represented;
+  }
+  return new Date(guess);
+}
+
+function addCalendarDays(p, days) {
+  const d = new Date(Date.UTC(p.year,p.month-1,p.day + days));
+  return {year:d.getUTCFullYear(),month:d.getUTCMonth()+1,day:d.getUTCDate()};
+}
+
+function getNextSpawn(boss, now) {
+  const p = zonedParts(now);
+  const [hour, minute] = boss.time.split(":").map(Number);
+
+  for (let offset=0; offset<=2; offset++) {
+    const day = addCalendarDays(p, offset);
+    const candidate = localToInstant(day.year,day.month,day.day,hour,minute);
+    if (candidate.getTime() > now.getTime()) return candidate;
+  }
+  return new Date(now.getTime() + 86400000);
+}
+
+function formatClock(date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone:TIME_ZONE,hour:"2-digit",minute:"2-digit",second:"2-digit",
+    hourCycle:"h23"
+  }).format(date);
+}
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone:TIME_ZONE,weekday:"long",day:"2-digit",month:"long",year:"numeric"
+  }).format(date);
+}
+
+function countdown(ms) {
+  if (ms <= 0) return "00:00:00";
+  const total = Math.floor(ms / 1000);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const hh = String(hours).padStart(2,"0");
+  const mm = String(mins).padStart(2,"0");
+  const ss = String(secs).padStart(2,"0");
+  return (days ? days + "d " : "") + `${hh}:${mm}:${ss}`;
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[c]);
+}
+
+function updateMapFilter() {
+  const select = $("mapFilter");
+  const current = select.value;
+  const maps = [...new Set(bosses.map(b=>b.map))].sort();
+  select.innerHTML = '<option value="">Todos os mapas</option>' +
+    maps.map(m=>`<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join("");
+  if (maps.includes(current)) select.value = current;
+}
+
+function render(now) {
+  $("clock").textContent = formatClock(now);
+  $("today").textContent = formatDate(now);
+  $("bossCount").textContent = bosses.length;
+  $("statusText").textContent = soundEnabled ? "Alertas ativados" : "Timers ativos";
+
+  const search = $("search").value.trim().toLowerCase();
+  const map = $("mapFilter").value;
+  const sort = $("sort").value;
+
+  const entries = bosses.map(b => ({boss:b, spawn:getNextSpawn(b,now)}));
+  entries.sort((a,b) => sort === "name"
+    ? a.boss.name.localeCompare(b.boss.name)
+    : a.spawn - b.spawn);
+
+  nextSpawnCache = entries;
+  const upcoming = [...entries].sort((a,b)=>a.spawn-b.spawn)[0];
+  $("nextBoss").textContent = upcoming ? upcoming.boss.name : "Nenhum";
+  $("nextTime").textContent = upcoming
+    ? "Spawn às " + formatClock(upcoming.spawn) + " · " +
+      countdown(upcoming.spawn-now)
+    : "Adicione bosses na agenda";
+
+  const filtered = entries.filter(({boss}) =>
+    (!map || boss.map === map) &&
+    (!search || `${boss.name} ${boss.map} ${boss.channel}`.toLowerCase().includes(search))
+  );
+
+  $("bossRows").innerHTML = filtered.map(({boss,spawn}) => {
+    const remaining = spawn.getTime() - now.getTime();
+    const cls = remaining <= 60000 ? "ready" : remaining <= 600000 ? "soon" : "";
+    return `<tr>
+      <td><span class="boss">${escapeHTML(boss.name)}</span></td>
+      <td>${escapeHTML(boss.map)}</td>
+      <td><span class="tag">${escapeHTML(boss.channel)}</span></td>
+      <td>${formatClock(spawn)}</td>
+      <td><span class="timer ${cls}">${countdown(remaining)}</span></td>
+    </tr>`;
+  }).join("");
+
+  $("empty").hidden = filtered.length !== 0;
+  checkAlerts(entries,now);
+}
+
+function checkAlerts(entries, now) {
+  // Remove alertas antigos para que o próximo ciclo possa alertar novamente.
+  for (const key of alerted) {
+    const [id, timestamp] = key.split("@");
+    if (Number(timestamp) < now.getTime() - 60000) alerted.delete(key);
+  }
+
+  if (!soundEnabled) return;
+  for (const {boss,spawn} of entries) {
+    const diff = spawn.getTime() - now.getTime();
+    const key = boss.id + "@" + spawn.getTime();
+    if (diff > 0 && diff <= ALERT_SECONDS*1000 && !alerted.has(key)) {
+      alerted.add(key);
+      beep();
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("MIR4 Boss Tracker", {
+          body: `${boss.name} (${boss.map}) nasce em ${countdown(diff)}.`
+        });
+      }
+    }
+  }
+}
+
+function beep() {
+  try {
+    if (!audioContext) {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) return;
+      audioContext = new Audio();
+    }
+    if (audioContext.state === "suspended") audioContext.resume();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.08;
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.35);
+  } catch (e) {
+    console.warn("Áudio indisponível.", e);
+  }
+}
+
+function refreshScheduleEditor() {
+  $("schedule").value = JSON.stringify(bosses,null,2);
+}
+
+$("soundBtn").addEventListener("click", async () => {
+  soundEnabled = !soundEnabled;
+  if (soundEnabled) {
+    try {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (Audio && !audioContext) audioContext = new Audio();
+      if (audioContext && audioContext.state === "suspended") await audioContext.resume();
+      if ("Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+      beep();
+      $("soundBtn").textContent = "🔔 Alertas ativados";
+      $("soundBtn").classList.add("active");
+    } catch (e) {
+      soundEnabled = false;
+      alert("Não foi possível ativar o áudio neste navegador.");
+    }
+  } else {
+    $("soundBtn").textContent = "🔔 Ativar alertas";
+    $("soundBtn").classList.remove("active");
+  }
+  render(new Date());
+});
+
+$("search").addEventListener("input", () => render(new Date()));
+$("mapFilter").addEventListener("change", () => render(new Date()));
+$("sort").addEventListener("change", () => render(new Date()));
+
+$("saveBtn").addEventListener("click", () => {
+  try {
+    const updated = validateBosses(JSON.parse($("schedule").value));
+    bosses = updated;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(bosses));
+    alerted.clear();
+    updateMapFilter();
+    refreshScheduleEditor();
+    render(new Date());
+    alert("Agenda salva com sucesso neste navegador!");
+  } catch (e) {
+    alert("Erro na agenda: " + e.message);
+  }
+});
+
+$("resetBtn").addEventListener("click", () => {
+  if (!confirm("Restaurar os exemplos? A agenda salva será substituída.")) return;
+  bosses = DEFAULT_BOSSES.map(b=>({...b}));
+  localStorage.removeItem(STORAGE_KEY);
+  alerted.clear();
+  updateMapFilter();
+  refreshScheduleEditor();
+  render(new Date());
+});
+
+$("exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(bosses,null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mir4-bosses-sa.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+updateMapFilter();
+refreshScheduleEditor();
+render(new Date());
+setInterval(() => render(new Date()),1000);
+</script>
+</body>
+</html>  
